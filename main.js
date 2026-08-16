@@ -2,8 +2,16 @@
 
 var obsidian = require('obsidian');
 
+var DEFAULT_SETTINGS = {
+    showStatusBar: true,
+    showSelectionCount: true,
+    showTooltip: true,
+    removeMarkdownSyntax: true
+};
+
 class ManuscriptCounter {
-    constructor() {
+    constructor(settings) {
+        this.settings = settings || DEFAULT_SETTINGS;
         this.gyotoKinsoku = '\u3001\u3002\uFF09\u300D\u300F\u3011';
         this.gyomatsuKinsoku = '\uFF08\u300C\u300E\u3010';
     }
@@ -22,7 +30,7 @@ class ManuscriptCounter {
             };
         }
 
-        var cleanText = this.removeMarkdownSyntax(text);
+        var cleanText = this.settings.removeMarkdownSyntax ? this.removeMarkdownSyntax(text) : text;
         var paragraphs = cleanText.split(/\n\n+/);
         
         var totalCells = 0;
@@ -277,6 +285,86 @@ class ManuscriptCounter {
     }
 }
 
+var JapaneseManuscriptCounterSettingTab = (function (PluginSettingTab) {
+    function JapaneseManuscriptCounterSettingTab(app, plugin) {
+        PluginSettingTab.call(this, app, plugin);
+        this.plugin = plugin;
+    }
+
+    if (PluginSettingTab) JapaneseManuscriptCounterSettingTab.__proto__ = PluginSettingTab;
+    JapaneseManuscriptCounterSettingTab.prototype = Object.create(PluginSettingTab && PluginSettingTab.prototype);
+    JapaneseManuscriptCounterSettingTab.prototype.constructor = JapaneseManuscriptCounterSettingTab;
+
+    JapaneseManuscriptCounterSettingTab.prototype.display = function() {
+        var self = this;
+        var containerEl = this.containerEl;
+        containerEl.empty();
+
+        containerEl.createEl('h2', { text: '原稿用紙カウンター' });
+        containerEl.createEl('p', {
+            text: 'ステータスバーの表示と文字数のカウント方法を設定できます。'
+        });
+
+        containerEl.createEl('h3', { text: '表示設定' });
+
+        new obsidian.Setting(containerEl)
+            .setName('ステータスバーに表示')
+            .setDesc('文字数と原稿用紙換算をステータスバーに表示します。')
+            .addToggle(function(toggle) {
+                toggle
+                    .setValue(self.plugin.settings.showStatusBar)
+                    .onChange(async function(value) {
+                        self.plugin.settings.showStatusBar = value;
+                        await self.plugin.saveSettings();
+                        self.plugin.updateCurrentCount();
+                    });
+            });
+
+        new obsidian.Setting(containerEl)
+            .setName('選択範囲のカウントを表示')
+            .setDesc('テキストを選択したとき、選択範囲と文書全体のカウントを表示します。')
+            .addToggle(function(toggle) {
+                toggle
+                    .setValue(self.plugin.settings.showSelectionCount)
+                    .onChange(async function(value) {
+                        self.plugin.settings.showSelectionCount = value;
+                        await self.plugin.saveSettings();
+                        self.plugin.updateCurrentCount();
+                    });
+            });
+
+        new obsidian.Setting(containerEl)
+            .setName('詳細なツールチップを表示')
+            .setDesc('ステータスバーにマウスカーソルを合わせたとき、行数やマス数などを表示します。')
+            .addToggle(function(toggle) {
+                toggle
+                    .setValue(self.plugin.settings.showTooltip)
+                    .onChange(async function(value) {
+                        self.plugin.settings.showTooltip = value;
+                        await self.plugin.saveSettings();
+                        self.plugin.updateCurrentCount();
+                    });
+            });
+
+        containerEl.createEl('h3', { text: 'カウント設定' });
+
+        new obsidian.Setting(containerEl)
+            .setName('Markdown記法を除外')
+            .setDesc('見出し、装飾、リンクなどのMarkdown記法を文字数に含めません。')
+            .addToggle(function(toggle) {
+                toggle
+                    .setValue(self.plugin.settings.removeMarkdownSyntax)
+                    .onChange(async function(value) {
+                        self.plugin.settings.removeMarkdownSyntax = value;
+                        await self.plugin.saveSettings();
+                        self.plugin.updateCurrentCount();
+                    });
+            });
+    };
+
+    return JapaneseManuscriptCounterSettingTab;
+}(obsidian.PluginSettingTab));
+
 var JapaneseManuscriptCounterPlugin = (function (Plugin) {
     function JapaneseManuscriptCounterPlugin() {
         Plugin.apply(this, arguments);
@@ -286,12 +374,14 @@ var JapaneseManuscriptCounterPlugin = (function (Plugin) {
     JapaneseManuscriptCounterPlugin.prototype = Object.create(Plugin && Plugin.prototype);
     JapaneseManuscriptCounterPlugin.prototype.constructor = JapaneseManuscriptCounterPlugin;
 
-    JapaneseManuscriptCounterPlugin.prototype.onload = function() {
+    JapaneseManuscriptCounterPlugin.prototype.onload = async function() {
         var self = this;
 
-        this.counter = new ManuscriptCounter();
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        this.counter = new ManuscriptCounter(this.settings);
         this.statusBarItem = this.addStatusBarItem();
         this.statusBarItem.setText('');
+        this.addSettingTab(new JapaneseManuscriptCounterSettingTab(this.app, this));
 
         this.addCommand({
             id: 'show-count-details',
@@ -356,7 +446,16 @@ var JapaneseManuscriptCounterPlugin = (function (Plugin) {
         modal.open();
     };
 
+    JapaneseManuscriptCounterPlugin.prototype.saveSettings = function() {
+        return this.saveData(this.settings);
+    };
+
     JapaneseManuscriptCounterPlugin.prototype.updateCurrentCount = function() {
+        if (!this.settings.showStatusBar) {
+            this.statusBarItem.hide();
+            return;
+        }
+
         // すべてのファイルでカウンターを表示
         this.statusBarItem.show();
         var view = this.app.workspace.getActiveViewOfType(obsidian.MarkdownView);
@@ -379,6 +478,8 @@ var JapaneseManuscriptCounterPlugin = (function (Plugin) {
     };
 
     JapaneseManuscriptCounterPlugin.prototype.updateCount = function(editor) {
+        if (!this.settings.showStatusBar) return;
+
         // すべてのファイルでカウントを実行
         var fullText = editor.getValue();
         var selectedText = editor.getSelection();
@@ -388,7 +489,7 @@ var JapaneseManuscriptCounterPlugin = (function (Plugin) {
         var displayText;
         var tooltipText;
         
-        if (selectedText && selectedText.length > 0) {
+        if (this.settings.showSelectionCount && selectedText && selectedText.length > 0) {
             var selectionResult = this.counter.countManuscriptCells(selectedText, false);
             var selManuscript = this.formatManuscriptCount(selectionResult);
             var fullManuscript = this.formatManuscriptCount(fullResult);
@@ -419,7 +520,12 @@ var JapaneseManuscriptCounterPlugin = (function (Plugin) {
         }
         
         this.statusBarItem.setText(displayText);
-        this.statusBarItem.setAttr('title', tooltipText);
+
+        if (this.settings.showTooltip) {
+            this.statusBarItem.setAttr('title', tooltipText);
+        } else {
+            this.statusBarItem.removeAttribute('title');
+        }
     };
 
     JapaneseManuscriptCounterPlugin.prototype.onunload = function() {
