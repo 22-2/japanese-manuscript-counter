@@ -5,6 +5,7 @@ import type { PresetId } from "../presets/presets";
 export interface PluginSettings extends CounterOptions {
   presetId: PresetId;
   showStatusBar: boolean;
+  enableStatusBarTagFilter: boolean;
   statusBarTags: string;
   showSelectionCount: boolean;
   showTooltip: boolean;
@@ -13,6 +14,7 @@ export interface PluginSettings extends CounterOptions {
 export const DEFAULT_SETTINGS: PluginSettings = {
   presetId: DEFAULT_PRESET_ID,
   showStatusBar: true,
+  enableStatusBarTagFilter: false,
   statusBarTags: "",
   showSelectionCount: true,
   showTooltip: true,
@@ -28,6 +30,10 @@ export function normalizeSettings(data: unknown): PluginSettings {
       typeof saved.showStatusBar === "boolean"
         ? saved.showStatusBar
         : DEFAULT_SETTINGS.showStatusBar,
+    enableStatusBarTagFilter:
+      typeof saved.enableStatusBarTagFilter === "boolean"
+        ? saved.enableStatusBarTagFilter
+        : DEFAULT_SETTINGS.enableStatusBarTagFilter,
     statusBarTags:
       typeof saved.statusBarTags === "string"
         ? saved.statusBarTags

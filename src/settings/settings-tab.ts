@@ -48,6 +48,15 @@ export class JapaneseManuscriptCounterSettingTab extends PluginSettingTab {
             },
           },
           {
+            name: "対象タグフィルターを有効にする",
+            desc: "オンにすると、対象タグを含むノートでのみ表示します。",
+            control: {
+              type: "toggle",
+              key: "enableStatusBarTagFilter",
+              defaultValue: DEFAULT_SETTINGS.enableStatusBarTagFilter,
+            },
+          },
+          {
             name: "対象タグ",
             desc: "カンマ区切りで複数指定できます。空欄ならすべてのノートで表示します。",
             control: {
