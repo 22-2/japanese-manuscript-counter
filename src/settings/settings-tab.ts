@@ -35,7 +35,8 @@ export class JapaneseManuscriptCounterSettingTab extends PluginSettingTab {
         },
       },
       {
-        name: "表示設定",
+        type: "group",
+        heading: "表示設定",
         items: [
           {
             name: "ステータスバーに表示",
@@ -67,7 +68,8 @@ export class JapaneseManuscriptCounterSettingTab extends PluginSettingTab {
         ],
       },
       {
-        name: "カウント設定",
+        type: "group",
+        heading: "カウント設定",
         items: [
           {
             name: "Markdown記法を除外",
