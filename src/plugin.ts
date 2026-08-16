@@ -181,12 +181,17 @@ export default class JapaneseManuscriptCounterPlugin extends Plugin {
   private canShowStatusBar(): boolean {
     if (!this.settings.showStatusBar) return false;
 
+    if (!this.settings.enableStatusBarTagFilter) return true;
+
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-    if (!this.settings.enableStatusBarTagFilter || !this.settings.statusBarTags.trim()) return true;
     if (!view?.file) return false;
 
     const cache = this.app.metadataCache.getFileCache(view.file);
-    return matchesTagFilter(cache ? getAllTags(cache) : null, this.settings.statusBarTags);
+    return matchesTagFilter(
+      cache ? getAllTags(cache) : null,
+      this.settings.statusBarTags,
+      this.settings.enableStatusBarTagFilter,
+    );
   }
 
   private hideStatusBar(): void {

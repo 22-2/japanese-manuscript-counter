@@ -58,7 +58,7 @@ export class JapaneseManuscriptCounterSettingTab extends PluginSettingTab {
           },
           {
             name: "対象タグ",
-            desc: "カンマ区切りで複数指定できます。空欄ならすべてのノートで表示します。",
+            desc: "カンマ区切りで複数指定できます。フィルター有効時は1つ以上指定してください。",
             control: {
               type: "text",
               key: "statusBarTags",

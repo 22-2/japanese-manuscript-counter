@@ -16,9 +16,15 @@ export function parseTagFilter(value: string): string[] {
   ];
 }
 
-export function matchesTagFilter(noteTags: readonly string[] | null, filterValue: string): boolean {
+export function matchesTagFilter(
+  noteTags: readonly string[] | null,
+  filterValue: string,
+  enabled = true,
+): boolean {
+  if (!enabled) return true;
+
   const requiredTags = parseTagFilter(filterValue);
-  if (requiredTags.length === 0) return true;
+  if (requiredTags.length === 0) return false;
   if (!noteTags) return false;
 
   const normalizedNoteTags = new Set(

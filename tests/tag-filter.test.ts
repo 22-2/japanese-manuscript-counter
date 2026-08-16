@@ -11,9 +11,14 @@ describe("tag filter", () => {
     expect(matchesTagFilter(["#日常"], "#小説, ga文庫")).toBe(false);
   });
 
-  it("shows the status bar for every note when the filter is empty", () => {
-    expect(matchesTagFilter(null, "")).toBe(true);
-    expect(matchesTagFilter([], "  ,、\n")).toBe(true);
+  it("does not match an empty filter when filtering is enabled", () => {
+    expect(matchesTagFilter(null, "")).toBe(false);
+    expect(matchesTagFilter([], "  ,、\n")).toBe(false);
+  });
+
+  it("shows every note when filtering is disabled", () => {
+    expect(matchesTagFilter(null, "#小説", false)).toBe(true);
+    expect(matchesTagFilter([], "#小説", false)).toBe(true);
   });
 
   it("hides the status bar when tags are unavailable", () => {
