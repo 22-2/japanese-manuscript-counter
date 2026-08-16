@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { LineLayoutCounter } from "../src/counter/line-layout-counter";
-import { formatPageCount, formatStatusText, isWithinPageRange } from "../src/presets/formatting";
-import { GA_BUNKO_PRESET } from "../src/presets/presets";
+import { LineLayoutCounter } from "src/counter/line-layout-counter";
+import { formatPageCount, formatStatusText, isWithinPageRange } from "src/presets/formatting";
+import { GA_BUNKO_PRESET } from "src/presets/presets";
 
 function makeLines(count: number): string {
   return Array.from({ length: count }, () => "あ").join("\n");

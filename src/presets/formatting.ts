@@ -1,5 +1,5 @@
-import type { CountResult } from "../counter/types";
-import type { ManuscriptPreset } from "./presets";
+import type { CountResult } from "src/counter/types";
+import type { ManuscriptPreset } from "src/presets/presets";
 
 export function formatPageCount(result: CountResult, preset: ManuscriptPreset): string {
   if (preset.pageDisplay === "decimal") {

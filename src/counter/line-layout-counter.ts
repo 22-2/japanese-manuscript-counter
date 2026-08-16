@@ -1,7 +1,7 @@
-import { removeMarkdownSyntax } from "./markdown";
-import { createCountResult, createEmptyResult, getCharWidth, normalizeLineEndings } from "./utils";
-import type { ManuscriptPreset } from "../presets/presets";
-import type { Counter, CounterOptions, CountResult, DebugLine } from "./types";
+import { removeMarkdownSyntax } from "src/counter/markdown";
+import { createCountResult, createEmptyResult, getCharWidth, normalizeLineEndings } from "src/counter/utils";
+import type { ManuscriptPreset } from "src/presets/presets";
+import type { Counter, CounterOptions, CountResult, DebugLine } from "src/counter/types";
 
 export class LineLayoutCounter implements Counter {
   constructor(

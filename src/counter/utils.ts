@@ -1,4 +1,4 @@
-import type { CountResult, DebugLine } from "./types";
+import type { CountResult, DebugLine } from "src/counter/types";
 
 export function getCharWidth(char: string): number {
   const code = char.charCodeAt(0);

@@ -1,6 +1,6 @@
-import { DEFAULT_PRESET_ID, getPreset } from "../presets/presets";
-import type { CounterOptions } from "../counter/types";
-import type { PresetId } from "../presets/presets";
+import { DEFAULT_PRESET_ID, getPreset } from "src/presets/presets";
+import type { CounterOptions } from "src/counter/types";
+import type { PresetId } from "src/presets/presets";
 
 export interface PluginSettings extends CounterOptions {
   presetId: PresetId;

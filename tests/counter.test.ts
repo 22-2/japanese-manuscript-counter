@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { LegacyManuscriptCounter } from "../src/counter/legacy-manuscript-counter";
-import { LineLayoutCounter } from "../src/counter/line-layout-counter";
-import { GA_BUNKO_PRESET } from "../src/presets/presets";
+import { LegacyManuscriptCounter } from "src/counter/legacy-manuscript-counter";
+import { LineLayoutCounter } from "src/counter/line-layout-counter";
+import { GA_BUNKO_PRESET } from "src/presets/presets";
 
 const options = { removeMarkdownSyntax: true };
 

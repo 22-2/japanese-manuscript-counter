@@ -1,8 +1,8 @@
 import { Plugin, PluginSettingTab } from "obsidian";
 import type { App, SettingDefinitionItem } from "obsidian";
-import { PRESETS } from "../presets/presets";
-import { DEFAULT_SETTINGS } from "./settings";
-import type { PluginSettings } from "./settings";
+import { PRESETS } from "src/presets/presets";
+import { DEFAULT_SETTINGS } from "src/settings/settings";
+import type { PluginSettings } from "src/settings/settings";
 
 export interface SettingsPlugin {
   settings: PluginSettings;
