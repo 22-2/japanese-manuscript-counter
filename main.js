@@ -1,436 +1,617 @@
-'use strict';
+"use strict";
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-const obsidian = require('obsidian');
+// src/main.ts
+var main_exports = {};
+__export(main_exports, {
+  default: () => JapaneseManuscriptCounterPlugin
+});
+module.exports = __toCommonJS(main_exports);
 
-const CELLS_PER_LINE = 20;
-const LINES_PER_PAGE = 20;
-const CELLS_PER_PAGE = CELLS_PER_LINE * LINES_PER_PAGE;
+// src/plugin.ts
+var import_obsidian2 = require("obsidian");
 
-const DEFAULT_SETTINGS = {
-    showStatusBar: true,
-    showSelectionCount: true,
-    showTooltip: true,
-    removeMarkdownSyntax: true
+// src/counter/markdown.ts
+function removeMarkdownSyntax(text) {
+  let cleaned = text;
+  cleaned = cleaned.replace(/^#{1,6}\s+/gm, "");
+  cleaned = cleaned.replace(/(\*\*|__)(.*?)\1/g, "$2");
+  cleaned = cleaned.replace(/(\*|_)(.*?)\1/g, "$2");
+  cleaned = cleaned.replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1");
+  cleaned = cleaned.replace(/!\[([^\]]*)\]\([^\)]+\)/g, "");
+  cleaned = cleaned.replace(/```[\s\S]*?```/g, "");
+  cleaned = cleaned.replace(/`([^`]+)`/g, "$1");
+  cleaned = cleaned.replace(/^[\*\-\+]\s+/gm, "");
+  cleaned = cleaned.replace(/^\d+\.\s+/gm, "");
+  cleaned = cleaned.replace(/^>\s+/gm, "");
+  cleaned = cleaned.replace(/^(\*{3,}|-{3,}|_{3,})$/gm, "");
+  cleaned = cleaned.replace(/<[^>]+>/g, "");
+  return cleaned;
+}
+
+// src/counter/utils.ts
+function getCharWidth(char) {
+  const code = char.charCodeAt(0);
+  return code >= 32 && code <= 126 || code >= 65377 && code <= 65439 ? 0.5 : 1;
+}
+function createEmptyResult() {
+  return {
+    totalCells: 0,
+    characters: 0,
+    totalLines: 0,
+    paragraphs: 0,
+    emptyParagraphs: 0,
+    pageCount: 0,
+    fullPages: 0,
+    remainingLines: 0,
+    debugInfo: []
+  };
+}
+function createCountResult(totalCells, characters, totalLines, paragraphs, emptyParagraphs, linesPerPage, debugInfo) {
+  return {
+    totalCells,
+    characters,
+    totalLines,
+    paragraphs,
+    emptyParagraphs,
+    pageCount: totalLines / linesPerPage,
+    fullPages: Math.floor(totalLines / linesPerPage),
+    remainingLines: totalLines % linesPerPage,
+    debugInfo
+  };
+}
+function addDebugLine(debugInfo, debugMode, lineNum, text, charCount, reason) {
+  if (!debugMode) return;
+  debugInfo.push({ lineNum, text, charCount, reason });
+}
+function normalizeLineEndings(text) {
+  return text.replace(/\r\n?/g, "\n");
+}
+
+// src/counter/legacy-manuscript-counter.ts
+var CELLS_PER_LINE = 20;
+var LINES_PER_PAGE = 20;
+var GYOTO_KINSOKU = "\u3001\u3002\uFF09\u300D\u300F\u3011";
+var GYOMATSU_KINSOKU = "\uFF08\u300C\u300E\u3010";
+var LegacyManuscriptCounter = class {
+  constructor(options) {
+    this.options = options;
+  }
+  options;
+  count(text, debugMode = false) {
+    if (!text || text.trim() === "") return createEmptyResult();
+    const cleanText = this.options.removeMarkdownSyntax ? removeMarkdownSyntax(text) : text;
+    const paragraphs = cleanText.split(/\n\n+/);
+    let totalCells = 0;
+    let totalChars = 0;
+    let totalLines = 0;
+    let paragraphCount = 0;
+    const allDebugInfo = [];
+    for (const paragraph of paragraphs) {
+      if (paragraph.trim() === "") continue;
+      paragraphCount++;
+      const result = this.countParagraph(paragraph, debugMode);
+      totalCells += result.cells;
+      totalChars += result.characters;
+      totalLines += result.lines;
+      if (debugMode && result.debugInfo) {
+        allDebugInfo.push({
+          paragraphNum: paragraphCount,
+          lines: result.debugInfo,
+          lineCount: result.lines
+        });
+      }
+    }
+    const emptyLines = Math.max(paragraphCount - 1, 0);
+    totalLines += emptyLines;
+    totalCells += emptyLines * CELLS_PER_LINE;
+    return createCountResult(
+      totalCells,
+      totalChars,
+      totalLines,
+      paragraphCount,
+      emptyLines,
+      LINES_PER_PAGE,
+      allDebugInfo
+    );
+  }
+  countParagraph(paragraph, debugMode) {
+    let currentLine = 0;
+    let totalChars = 0;
+    let lines = 1;
+    let currentLineText = "";
+    const debugInfo = [];
+    const chars = Array.from(paragraph);
+    for (let i = 0; i < chars.length; i++) {
+      const char = chars[i];
+      if (char === "\n") {
+        if (currentLine > 0) {
+          addDebugLine(debugInfo, debugMode, lines, currentLineText, currentLine, "\u6539\u884C");
+          currentLineText = "";
+          lines++;
+          currentLine = 0;
+        } else if (debugMode) {
+          addDebugLine(debugInfo, true, lines, currentLineText, 0, "\u7A7A\u6539\u884C\uFF08\u30AB\u30A6\u30F3\u30C8\u306A\u3057\uFF09");
+        }
+        continue;
+      }
+      const charWidth = getCharWidth(char);
+      totalChars += charWidth === 1 ? 1 : 0.5;
+      if (currentLine + charWidth === CELLS_PER_LINE) {
+        if (i + 1 < chars.length && GYOTO_KINSOKU.includes(chars[i + 1])) {
+          currentLine += charWidth;
+          if (debugMode) currentLineText += char;
+          i++;
+          const nextChar = chars[i];
+          const nextCharWidth = getCharWidth(nextChar);
+          totalChars += nextCharWidth === 1 ? 1 : 0.5;
+          currentLine += nextCharWidth;
+          if (debugMode) currentLineText += nextChar;
+          addDebugLine(
+            debugInfo,
+            debugMode,
+            lines,
+            currentLineText,
+            currentLine,
+            `20\u5B57+\u884C\u982D\u7981\u5247: ${nextChar}`
+          );
+          currentLineText = "";
+          if (i + 1 < chars.length) {
+            lines++;
+            currentLine = 0;
+          }
+        } else {
+          currentLine += charWidth;
+          if (debugMode) currentLineText += char;
+          addDebugLine(debugInfo, debugMode, lines, currentLineText, currentLine, "20\u6587\u5B57\u3067\u6539\u884C");
+          currentLineText = "";
+          if (i + 1 < chars.length) {
+            lines++;
+            currentLine = 0;
+          }
+        }
+      } else if (currentLine + charWidth > CELLS_PER_LINE) {
+        const isGyotoKinsoku = GYOTO_KINSOKU.includes(char);
+        const isGyomatsuKinsoku = GYOMATSU_KINSOKU.includes(char);
+        if (isGyotoKinsoku) {
+          currentLine += charWidth;
+          if (debugMode) currentLineText += char;
+          addDebugLine(
+            debugInfo,
+            debugMode,
+            lines,
+            currentLineText,
+            currentLine,
+            `\u884C\u982D\u7981\u5247: ${char}`
+          );
+          currentLineText = "";
+          if (i + 1 < chars.length) {
+            lines++;
+            currentLine = 0;
+          }
+        } else if (isGyomatsuKinsoku) {
+          addDebugLine(debugInfo, debugMode, lines, currentLineText, currentLine, "\u884C\u672B\u7981\u5247");
+          currentLineText = debugMode ? char : "";
+          lines++;
+          currentLine = charWidth;
+        } else {
+          addDebugLine(debugInfo, debugMode, lines, currentLineText, currentLine, "20\u6587\u5B57\u8D85\u904E");
+          currentLineText = debugMode ? char : "";
+          lines++;
+          currentLine = charWidth;
+        }
+      } else {
+        currentLine += charWidth;
+        if (debugMode) currentLineText += char;
+      }
+    }
+    if (debugMode && currentLineText && currentLine > 0) {
+      addDebugLine(debugInfo, true, lines, currentLineText, currentLine, "\u6700\u7D42\u884C");
+    }
+    return {
+      cells: Math.ceil(totalChars + lines),
+      characters: totalChars,
+      lines,
+      debugInfo: debugMode ? debugInfo : null
+    };
+  }
 };
 
-class ManuscriptCounter {
-    constructor(settings = DEFAULT_SETTINGS) {
-        this.settings = settings;
-        this.gyotoKinsoku = '\u3001\u3002\uFF09\u300D\u300F\u3011';
-        this.gyomatsuKinsoku = '\uFF08\u300C\u300E\u3010';
-    }
-
-    countManuscriptCells(text, debugMode = false) {
-        if (!text || text.trim() === '') return this.createEmptyResult();
-
-        const cleanText = this.settings.removeMarkdownSyntax
-            ? this.removeMarkdownSyntax(text)
-            : text;
-        const paragraphs = cleanText.split(/\n\n+/);
-        let totalCells = 0;
-        let totalChars = 0;
-        let totalLines = 0;
-        let paragraphCount = 0;
-        const allDebugInfo = [];
-
-        for (const paragraph of paragraphs) {
-            if (paragraph.trim() === '') continue;
-
-            paragraphCount++;
-            const result = this.countParagraphCells(paragraph, debugMode);
-            totalCells += result.cells;
-            totalChars += result.characters;
-            totalLines += result.lines;
-
-            if (debugMode && result.debugInfo) {
-                allDebugInfo.push({
-                    paragraphNum: paragraphCount,
-                    lines: result.debugInfo,
-                    lineCount: result.lines
-                });
-            }
+// src/counter/line-layout-counter.ts
+var LineLayoutCounter = class {
+  constructor(preset, options) {
+    this.preset = preset;
+    this.options = options;
+  }
+  preset;
+  options;
+  count(text, debugMode = false) {
+    if (text.length === 0) return createEmptyResult();
+    const cleanText = this.options.removeMarkdownSyntax ? removeMarkdownSyntax(text) : text;
+    if (cleanText.length === 0) return createEmptyResult();
+    const normalizedText = normalizeLineEndings(cleanText);
+    const sourceLines = this.preset.forceLineBreaks ? normalizedText.split("\n") : [normalizedText.replace(/\n/g, "")];
+    const debugInfo = [];
+    let currentDebugLines = [];
+    let currentDebugLineCount = 0;
+    let paragraphCount = 0;
+    let emptyLines = 0;
+    let totalChars = 0;
+    let totalLines = 0;
+    let inParagraph = false;
+    const flushDebugParagraph = () => {
+      if (currentDebugLines.length === 0) return;
+      debugInfo.push({
+        paragraphNum: debugInfo.length + 1,
+        lines: currentDebugLines,
+        lineCount: currentDebugLineCount
+      });
+      currentDebugLines = [];
+      currentDebugLineCount = 0;
+    };
+    for (const line of sourceLines) {
+      const isBlankLine = line.length === 0;
+      if (isBlankLine) {
+        flushDebugParagraph();
+        inParagraph = false;
+        if (this.preset.countBlankLines) {
+          emptyLines++;
+          totalLines++;
         }
-
-        // 段落間の空白行をカウント（段落数 - 1 = 空白行の数）
-        const emptyLines = Math.max(paragraphCount - 1, 0);
-        totalLines += emptyLines;
-        totalCells += emptyLines * CELLS_PER_LINE;
-
-        const manuscriptPages = Math.floor(totalLines / LINES_PER_PAGE);
-        const manuscriptLines = totalLines % LINES_PER_PAGE;
-
-        return {
-            totalCells,
-            characters: totalChars,
-            totalLines,
-            paragraphs: paragraphCount,
-            manuscripts: totalCells / CELLS_PER_PAGE,
-            manuscriptPages,
-            manuscriptLines,
-            debugInfo: allDebugInfo,
-            emptyParagraphs: emptyLines
-        };
-    }
-
-    createEmptyResult() {
-        return {
-            totalCells: 0,
-            characters: 0,
-            totalLines: 0,
-            paragraphs: 0,
-            manuscripts: 0,
-            manuscriptPages: 0,
-            manuscriptLines: 0,
-            debugInfo: [],
-            emptyParagraphs: 0
-        };
-    }
-
-    countParagraphCells(paragraph, debugMode = false) {
-        let currentLine = 0;
-        let totalChars = 0;
-        let lines = 1;
-        let currentLineText = '';
-        const debugInfo = [];
-        const chars = Array.from(paragraph);
-
-        for (let i = 0; i < chars.length; i++) {
-            const char = chars[i];
-
-            if (char === '\n') {
-                // 0文字の改行は行数にカウントしない
-                if (currentLine > 0) {
-                    this.addDebugLine(debugInfo, debugMode, lines, currentLineText, currentLine, '改行');
-                    currentLineText = '';
-                    lines++;
-                    currentLine = 0;
-                } else if (debugMode) {
-                    // デバッグモードでは0文字の改行も記録するが、行数は増やさない
-                    this.addDebugLine(debugInfo, true, lines, currentLineText, 0, '空改行（カウントなし）');
-                }
-                continue;
-            }
-
-            const charWidth = this.getCharWidth(char);
-            totalChars += charWidth === 1 ? 1 : 0.5;
-
-            // 現在の文字を追加すると20文字ちょうどになる場合
-            if (currentLine + charWidth === CELLS_PER_LINE) {
-                // 次の文字が行頭禁則文字かチェック
-                if (i + 1 < chars.length && this.gyotoKinsoku.includes(chars[i + 1])) {
-                    // 現在の文字と次の行頭禁則文字を両方とも現在の行に追加（21文字の行になる）
-                    currentLine += charWidth;
-                    if (debugMode) currentLineText += char;
-
-                    // 次の文字（行頭禁則文字）も処理
-                    i++;
-                    const nextChar = chars[i];
-                    const nextCharWidth = this.getCharWidth(nextChar);
-                    totalChars += nextCharWidth === 1 ? 1 : 0.5;
-                    currentLine += nextCharWidth;
-                    if (debugMode) currentLineText += nextChar;
-
-                    this.addDebugLine(
-                        debugInfo,
-                        debugMode,
-                        lines,
-                        currentLineText,
-                        currentLine,
-                        `20字+行頭禁則: ${nextChar}`
-                    );
-                    currentLineText = '';
-
-                    // 次の文字があるかチェックしてから改行
-                    if (i + 1 < chars.length) {
-                        lines++;
-                        currentLine = 0;
-                    }
-                } else {
-                    // 通常通り現在の行に追加（20文字で改行）
-                    currentLine += charWidth;
-                    if (debugMode) currentLineText += char;
-                    this.addDebugLine(debugInfo, debugMode, lines, currentLineText, currentLine, '20文字で改行');
-                    currentLineText = '';
-
-                    // 次の文字があるかチェックしてから改行
-                    if (i + 1 < chars.length) {
-                        lines++;
-                        currentLine = 0;
-                    }
-                }
-            } else if (currentLine + charWidth > CELLS_PER_LINE) {
-                // 20文字を超える場合
-                const isGyotoKinsoku = this.gyotoKinsoku.includes(char);
-                const isGyomatsuKinsoku = this.gyomatsuKinsoku.includes(char);
-
-                if (isGyotoKinsoku) {
-                    // 行頭禁則文字は現在の行に追加してから改行（21文字の行になる）
-                    currentLine += charWidth;
-                    if (debugMode) currentLineText += char;
-                    this.addDebugLine(debugInfo, debugMode, lines, currentLineText, currentLine, `行頭禁則: ${char}`);
-                    currentLineText = '';
-
-                    // 次の文字があるかチェックしてから改行
-                    if (i + 1 < chars.length) {
-                        lines++;
-                        currentLine = 0;
-                    }
-                } else if (isGyomatsuKinsoku) {
-                    // 行末禁則文字は次の行に送る
-                    this.addDebugLine(debugInfo, debugMode, lines, currentLineText, currentLine, '行末禁則');
-                    currentLineText = debugMode ? char : '';
-                    lines++;
-                    currentLine = charWidth;
-                } else {
-                    // 通常の文字は次の行に送る
-                    this.addDebugLine(debugInfo, debugMode, lines, currentLineText, currentLine, '20文字超過');
-                    currentLineText = debugMode ? char : '';
-                    lines++;
-                    currentLine = charWidth;
-                }
-            } else {
-                // 20文字未満の場合は通常通り追加
-                currentLine += charWidth;
-                if (debugMode) currentLineText += char;
-            }
-        }
-
-        // 最後の行が残っている場合のみデバッグ情報に追加
-        if (debugMode && currentLineText && currentLine > 0) {
-            this.addDebugLine(debugInfo, true, lines, currentLineText, currentLine, '最終行');
-        }
-
-        const totalCells = totalChars + lines;
-        return {
-            cells: Math.ceil(totalCells),
-            characters: totalChars,
-            lines,
-            debugInfo: debugMode ? debugInfo : null
-        };
-    }
-
-    addDebugLine(debugInfo, debugMode, lineNum, text, charCount, reason) {
-        if (!debugMode) return;
-
-        debugInfo.push({ lineNum, text, charCount, reason });
-    }
-
-    getCharWidth(char) {
-        const code = char.charCodeAt(0);
-        return (code >= 0x20 && code <= 0x7E) || (code >= 0xFF61 && code <= 0xFF9F)
-            ? 0.5
-            : 1;
-    }
-
-    removeMarkdownSyntax(text) {
-        let cleaned = text;
-
-        cleaned = cleaned.replace(/^#{1,6}\s+/gm, '');
-        cleaned = cleaned.replace(/(\*\*|__)(.*?)\1/g, '$2');
-        cleaned = cleaned.replace(/(\*|_)(.*?)\1/g, '$2');
-        cleaned = cleaned.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
-        cleaned = cleaned.replace(/!\[([^\]]*)\]\([^\)]+\)/g, '');
-        cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
-        cleaned = cleaned.replace(/`([^`]+)`/g, '$1');
-        cleaned = cleaned.replace(/^[\*\-\+]\s+/gm, '');
-        cleaned = cleaned.replace(/^\d+\.\s+/gm, '');
-        cleaned = cleaned.replace(/^>\s+/gm, '');
-        cleaned = cleaned.replace(/^(\*{3,}|-{3,}|_{3,})$/gm, '');
-        cleaned = cleaned.replace(/<[^>]+>/g, '');
-
-        return cleaned;
-    }
-}
-
-class JapaneseManuscriptCounterSettingTab extends obsidian.PluginSettingTab {
-    constructor(app, plugin) {
-        super(app, plugin);
-        this.plugin = plugin;
-    }
-
-    display() {
-        const { containerEl } = this;
-        containerEl.empty();
-
-        containerEl.createEl('h2', { text: '原稿用紙カウンター' });
-        containerEl.createEl('p', {
-            text: 'ステータスバーの表示と文字数のカウント方法を設定できます。'
+        continue;
+      }
+      if (!inParagraph) {
+        paragraphCount++;
+        inParagraph = true;
+      }
+      const characters = Array.from(line);
+      const lineCharacters = characters.reduce((total, char) => total + getCharWidth(char), 0);
+      const wrappedLines = Math.max(1, Math.ceil(lineCharacters / this.preset.charactersPerLine));
+      const firstUsedLine = totalLines + 1;
+      totalChars += lineCharacters;
+      totalLines += wrappedLines;
+      currentDebugLineCount += wrappedLines;
+      if (debugMode) {
+        currentDebugLines.push({
+          lineNum: firstUsedLine,
+          text: line,
+          charCount: lineCharacters,
+          reason: wrappedLines > 1 ? `${this.preset.charactersPerLine}\u5B57\u76F8\u5F53\u3067${wrappedLines}\u884C\u306B\u6298\u308A\u8FD4\u3057` : "\u5F37\u5236\u6539\u884C"
         });
-
-        containerEl.createEl('h3', { text: '表示設定' });
-        this.addToggleSetting(
-            'showStatusBar',
-            'ステータスバーに表示',
-            '文字数と原稿用紙換算をステータスバーに表示します。'
-        );
-        this.addToggleSetting(
-            'showSelectionCount',
-            '選択範囲のカウントを表示',
-            'テキストを選択したとき、選択範囲と文書全体のカウントを表示します。'
-        );
-        this.addToggleSetting(
-            'showTooltip',
-            '詳細なツールチップを表示',
-            'ステータスバーにマウスカーソルを合わせたとき、行数やマス数などを表示します。'
-        );
-
-        containerEl.createEl('h3', { text: 'カウント設定' });
-        this.addToggleSetting(
-            'removeMarkdownSyntax',
-            'Markdown記法を除外',
-            '見出し、装飾、リンクなどのMarkdown記法を文字数に含めません。'
-        );
+      }
     }
+    flushDebugParagraph();
+    return createCountResult(
+      Math.ceil(totalChars + totalLines),
+      totalChars,
+      totalLines,
+      paragraphCount,
+      emptyLines,
+      this.preset.linesPerPage,
+      debugMode ? debugInfo : []
+    );
+  }
+};
 
-    addToggleSetting(key, name, description) {
-        new obsidian.Setting(this.containerEl)
-            .setName(name)
-            .setDesc(description)
-            .addToggle((toggle) => {
-                toggle
-                    .setValue(this.plugin.settings[key])
-                    .onChange((value) => {
-                        this.plugin.settings[key] = value;
-                        return this.plugin.saveSettings();
-                    });
-            });
-    }
+// src/counter/factory.ts
+function createCounter(preset, options) {
+  if (preset.engine === "line-layout") {
+    return new LineLayoutCounter(preset, options);
+  }
+  return new LegacyManuscriptCounter(options);
 }
 
-class JapaneseManuscriptCounterPlugin extends obsidian.Plugin {
-    async onload() {
-        this.settings = {
-            ...DEFAULT_SETTINGS,
-            ...(await this.loadData())
-        };
-        this.counter = new ManuscriptCounter(this.settings);
-        this.statusBarItem = this.addStatusBarItem();
-        this.statusBarItem.setText('');
+// src/presets/formatting.ts
+function formatPageCount(result, preset) {
+  if (preset.pageDisplay === "decimal") {
+    return `${result.pageCount.toFixed(1)}${preset.pageUnit}\uFF08${preset.statusLabel}\uFF09`;
+  }
+  if (result.fullPages === 0) return `${result.remainingLines}\u884C`;
+  if (result.remainingLines === 0) return `${result.fullPages}\u679A`;
+  return `${result.fullPages}\u679A\u3068${result.remainingLines}\u884C`;
+}
+function formatResultLabel(result, preset) {
+  if (preset.pageDisplay === "decimal") {
+    return formatPageCount(result, preset);
+  }
+  return `${result.characters}\u6587\u5B57 (${formatPageCount(result, preset)})`;
+}
+function isWithinPageRange(result, preset) {
+  if (!preset.pageRange) return true;
+  return result.pageCount >= preset.pageRange.min && result.pageCount <= preset.pageRange.max;
+}
+function formatCompliance(result, preset) {
+  if (!preset.pageRange) return "";
+  return isWithinPageRange(result, preset) ? "\u30FB\u898F\u5B9A\u5185" : "\u30FB\u26A0 \u898F\u5B9A\u5916";
+}
+function formatStatusText(fullResult, selectionResult, preset) {
+  const fullLabel = formatResultLabel(fullResult, preset);
+  if (selectionResult) {
+    return `\u9078\u629E: ${formatResultLabel(selectionResult, preset)} | \u5168\u4F53: ${fullLabel}${formatCompliance(fullResult, preset)}`;
+  }
+  return `${fullLabel}${formatCompliance(fullResult, preset)}`;
+}
 
-        this.addSettingTab(new JapaneseManuscriptCounterSettingTab(this.app, this));
-        this.registerCommands();
-        this.registerEvents();
-        this.updateCurrentCount();
-    }
+// src/presets/presets.ts
+var MANUSCRIPT_PRESET = {
+  id: "manuscript-20x20",
+  name: "\u539F\u7A3F\u7528\u7D19 20\xD720",
+  statusLabel: "\u539F\u7A3F\u7528\u7D19 20\xD720",
+  engine: "manuscript",
+  charactersPerLine: 20,
+  linesPerPage: 20,
+  forceLineBreaks: false,
+  countBlankLines: true,
+  pageUnit: "\u679A",
+  pageDisplay: "manuscript"
+};
+var GA_BUNKO_PRESET = {
+  id: "ga-bunko-42x34",
+  name: "GA\u6587\u5EAB 42\xD734",
+  statusLabel: "GA 42\xD734",
+  engine: "line-layout",
+  charactersPerLine: 42,
+  linesPerPage: 34,
+  forceLineBreaks: true,
+  countBlankLines: true,
+  pageUnit: "\u9801",
+  pageDisplay: "decimal",
+  pageRange: {
+    min: 80,
+    max: 130
+  }
+};
+var PRESETS = [MANUSCRIPT_PRESET, GA_BUNKO_PRESET];
+var DEFAULT_PRESET_ID = MANUSCRIPT_PRESET.id;
+function getPreset(id) {
+  return PRESETS.find((preset) => preset.id === id) ?? MANUSCRIPT_PRESET;
+}
 
-    registerCommands() {
-        this.addCommand({
-            id: 'show-count-details',
-            name: 'カウント詳細を表示（デバッグ）',
-            editorCallback: (editor) => this.showCountDetails(editor)
-        });
-    }
+// src/settings/settings-tab.ts
+var import_obsidian = require("obsidian");
 
-    registerEvents() {
-        this.registerEvent(
-            this.app.workspace.on('editor-change', (editor) => this.updateCount(editor))
-        );
-        this.registerEvent(
-            this.app.workspace.on('active-leaf-change', () => this.updateCurrentCount())
-        );
-        this.registerInterval(window.setInterval(() => this.updateCurrentCount(), 300));
-    }
+// src/settings/settings.ts
+var DEFAULT_SETTINGS = {
+  presetId: DEFAULT_PRESET_ID,
+  showStatusBar: true,
+  showSelectionCount: true,
+  showTooltip: true,
+  removeMarkdownSyntax: true
+};
+function normalizeSettings(data) {
+  const saved = data && typeof data === "object" ? data : {};
+  return {
+    presetId: getPreset(typeof saved.presetId === "string" ? saved.presetId : void 0).id,
+    showStatusBar: typeof saved.showStatusBar === "boolean" ? saved.showStatusBar : DEFAULT_SETTINGS.showStatusBar,
+    showSelectionCount: typeof saved.showSelectionCount === "boolean" ? saved.showSelectionCount : DEFAULT_SETTINGS.showSelectionCount,
+    showTooltip: typeof saved.showTooltip === "boolean" ? saved.showTooltip : DEFAULT_SETTINGS.showTooltip,
+    removeMarkdownSyntax: typeof saved.removeMarkdownSyntax === "boolean" ? saved.removeMarkdownSyntax : DEFAULT_SETTINGS.removeMarkdownSyntax
+  };
+}
 
-    async saveSettings() {
-        await this.saveData(this.settings);
-        this.updateCurrentCount();
-    }
-
-    showCountDetails(editor) {
-        const result = this.counter.countManuscriptCells(editor.getValue(), true);
-        const modal = new obsidian.Modal(this.app);
-
-        modal.titleEl.setText('原稿用紙カウント詳細');
-        modal.contentEl.addClass('manuscript-counter-debug-modal');
-        modal.contentEl.setText(this.buildCountDetails(result));
-        modal.open();
-    }
-
-    buildCountDetails(result) {
-        let content = [
-            '=== カウント詳細 ===',
-            '',
-            `総文字数: ${result.characters}`,
-            `総行数: ${result.totalLines}`,
-            `総マス数: ${result.totalCells}`,
-            `段落数: ${result.paragraphs}`,
-            `空行数: ${result.emptyParagraphs}`,
-            `原稿用紙: ${this.formatManuscriptCount(result)}`,
-            '',
-            '=== 各行の詳細 ===',
-            ''
-        ].join('\n');
-
-        for (const paragraph of result.debugInfo ?? []) {
-            content += `【段落 ${paragraph.paragraphNum}】（${paragraph.lineCount}行）\n`;
-            for (const line of paragraph.lines) {
-                content += `行${line.lineNum} (${line.charCount}文字): ${line.text}\n`;
-                content += `  → ${line.reason}\n`;
+// src/settings/settings-tab.ts
+var JapaneseManuscriptCounterSettingTab = class extends import_obsidian.PluginSettingTab {
+  plugin;
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+  async setControlValue(key, value) {
+    await super.setControlValue(key, value);
+    this.plugin.onSettingsChanged();
+  }
+  getSettingDefinitions() {
+    return [
+      {
+        name: "\u30D7\u30EA\u30BB\u30C3\u30C8",
+        desc: "\u6587\u7AE0\u306E\u6298\u308A\u8FD4\u3057\u3068\u30DA\u30FC\u30B8\u63DB\u7B97\u306B\u4F7F\u7528\u3059\u308B\u30EB\u30FC\u30EB\u3092\u9078\u629E\u3057\u307E\u3059\u3002",
+        control: {
+          type: "dropdown",
+          key: "presetId",
+          defaultValue: DEFAULT_SETTINGS.presetId,
+          options: Object.fromEntries(PRESETS.map((preset) => [preset.id, preset.name]))
+        }
+      },
+      {
+        name: "\u8868\u793A\u8A2D\u5B9A",
+        items: [
+          {
+            name: "\u30B9\u30C6\u30FC\u30BF\u30B9\u30D0\u30FC\u306B\u8868\u793A",
+            desc: "\u30AB\u30A6\u30F3\u30C8\u7D50\u679C\u3092\u30B9\u30C6\u30FC\u30BF\u30B9\u30D0\u30FC\u306B\u8868\u793A\u3057\u307E\u3059\u3002",
+            control: {
+              type: "toggle",
+              key: "showStatusBar",
+              defaultValue: DEFAULT_SETTINGS.showStatusBar
             }
-            content += '\n';
-        }
+          },
+          {
+            name: "\u9078\u629E\u7BC4\u56F2\u306E\u30AB\u30A6\u30F3\u30C8\u3092\u8868\u793A",
+            desc: "\u30C6\u30AD\u30B9\u30C8\u9078\u629E\u6642\u306B\u9078\u629E\u7BC4\u56F2\u306E\u7D50\u679C\u3092\u8868\u793A\u3057\u307E\u3059\u3002",
+            control: {
+              type: "toggle",
+              key: "showSelectionCount",
+              defaultValue: DEFAULT_SETTINGS.showSelectionCount
+            }
+          },
+          {
+            name: "\u8A73\u7D30\u306A\u30C4\u30FC\u30EB\u30C1\u30C3\u30D7\u3092\u8868\u793A",
+            desc: "\u30B9\u30C6\u30FC\u30BF\u30B9\u30D0\u30FC\u306B\u8A73\u7D30\u306A\u30AB\u30A6\u30F3\u30C8\u60C5\u5831\u3092\u8868\u793A\u3057\u307E\u3059\u3002",
+            control: {
+              type: "toggle",
+              key: "showTooltip",
+              defaultValue: DEFAULT_SETTINGS.showTooltip
+            }
+          }
+        ]
+      },
+      {
+        name: "\u30AB\u30A6\u30F3\u30C8\u8A2D\u5B9A",
+        items: [
+          {
+            name: "Markdown\u8A18\u6CD5\u3092\u9664\u5916",
+            desc: "\u898B\u51FA\u3057\u3001\u88C5\u98FE\u3001\u30EA\u30F3\u30AF\u306A\u3069\u3092\u6587\u5B57\u6570\u306B\u542B\u3081\u307E\u305B\u3093\u3002",
+            control: {
+              type: "toggle",
+              key: "removeMarkdownSyntax",
+              defaultValue: DEFAULT_SETTINGS.removeMarkdownSyntax
+            }
+          }
+        ]
+      }
+    ];
+  }
+};
 
-        return content;
+// src/plugin.ts
+var WARNING_CLASS = "plugin-japanese-manuscript-counter-warning";
+var JapaneseManuscriptCounterPlugin = class extends import_obsidian2.Plugin {
+  counter;
+  statusBarItem;
+  async onload() {
+    this.settings = normalizeSettings(await this.loadData());
+    this.counter = this.createCounter();
+    this.statusBarItem = this.addStatusBarItem();
+    this.statusBarItem.textContent = "";
+    this.addSettingTab(new JapaneseManuscriptCounterSettingTab(this.app, this));
+    this.registerCommands();
+    this.registerEvents();
+    this.updateCurrentCount();
+  }
+  onSettingsChanged() {
+    this.counter = this.createCounter();
+    this.updateCurrentCount();
+  }
+  createCounter() {
+    return createCounter(getPreset(this.settings.presetId), this.settings);
+  }
+  getActivePreset() {
+    return getPreset(this.settings.presetId);
+  }
+  registerCommands() {
+    this.addCommand({
+      id: "show-count-details",
+      name: "\u30AB\u30A6\u30F3\u30C8\u8A73\u7D30\u3092\u8868\u793A\uFF08\u30C7\u30D0\u30C3\u30B0\uFF09",
+      editorCallback: (editor) => this.showCountDetails(editor)
+    });
+  }
+  registerEvents() {
+    this.registerEvent(
+      this.app.workspace.on("editor-change", (editor) => this.updateCount(editor))
+    );
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", () => this.updateCurrentCount())
+    );
+    this.registerInterval(window.setInterval(() => this.updateCurrentCount(), 300));
+  }
+  showCountDetails(editor) {
+    const result = this.counter.count(editor.getValue(), true);
+    const modal = new import_obsidian2.Modal(this.app);
+    modal.titleEl.textContent = "\u539F\u7A3F\u7528\u7D19\u30AB\u30A6\u30F3\u30C8\u8A73\u7D30";
+    modal.contentEl.classList.add("manuscript-counter-debug-modal");
+    modal.contentEl.textContent = this.buildCountDetails(result);
+    modal.open();
+  }
+  buildCountDetails(result) {
+    const preset = this.getActivePreset();
+    let content = [
+      "=== \u30AB\u30A6\u30F3\u30C8\u8A73\u7D30 ===",
+      "",
+      `\u30D7\u30EA\u30BB\u30C3\u30C8: ${preset.name}`,
+      `\u7DCF\u6587\u5B57\u6570: ${result.characters}`,
+      `\u7DCF\u884C\u6570: ${result.totalLines}`,
+      `\u7DCF\u30DE\u30B9\u6570: ${result.totalCells}`,
+      `\u6BB5\u843D\u6570: ${result.paragraphs}`,
+      `\u7A7A\u884C\u6570: ${result.emptyParagraphs}`,
+      `\u30DA\u30FC\u30B8: ${formatPageCount(result, preset)}`,
+      "",
+      "=== \u5404\u884C\u306E\u8A73\u7D30 ===",
+      ""
+    ].join("\n");
+    for (const paragraph of result.debugInfo) {
+      content += `\u3010\u6BB5\u843D ${paragraph.paragraphNum}\u3011\uFF08${paragraph.lineCount}\u884C\uFF09
+`;
+      for (const line of paragraph.lines) {
+        content += `\u884C${line.lineNum} (${line.charCount}\u6587\u5B57): ${line.text}
+`;
+        content += `  \u2192 ${line.reason}
+`;
+      }
+      content += "\n";
     }
-
-    updateCurrentCount() {
-        if (!this.settings.showStatusBar) {
-            this.statusBarItem.hide();
-            return;
-        }
-
-        this.statusBarItem.show();
-        const view = this.app.workspace.getActiveViewOfType(obsidian.MarkdownView);
-        if (view) {
-            this.updateCount(view.editor);
-        } else {
-            this.statusBarItem.setText('');
-        }
+    return content;
+  }
+  updateCurrentCount() {
+    if (!this.settings.showStatusBar) {
+      this.statusBarItem.style.display = "none";
+      return;
     }
-
-    updateCount(editor) {
-        if (!this.settings.showStatusBar) return;
-
-        const fullResult = this.counter.countManuscriptCells(editor.getValue());
-        const selectedText = editor.getSelection();
-        const selectionResult = this.settings.showSelectionCount && selectedText?.length > 0
-            ? this.counter.countManuscriptCells(selectedText)
-            : null;
-        const fullManuscript = this.formatManuscriptCount(fullResult);
-        const displayText = selectionResult
-            ? `選択: ${selectionResult.characters}文字 (${this.formatManuscriptCount(selectionResult)}) | 全体: ${fullResult.characters}文字 (${fullManuscript})`
-            : `${fullResult.characters}文字 (${fullManuscript})`;
-        const tooltipText = selectionResult
-            ? `[選択範囲]\n${this.formatResultDetails(selectionResult)}\n\n[全体]\n${this.formatResultDetails(fullResult)}`
-            : this.formatResultDetails(fullResult);
-
-        this.statusBarItem.setText(displayText);
-        this.updateTooltip(tooltipText);
+    this.statusBarItem.style.display = "";
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian2.MarkdownView);
+    if (view) {
+      this.updateCount(view.editor);
+    } else {
+      this.statusBarItem.textContent = "";
+      this.statusBarItem.classList.remove(WARNING_CLASS);
     }
+  }
+  updateCount(editor) {
+    if (!this.settings.showStatusBar) return;
+    const preset = this.getActivePreset();
+    const fullResult = this.counter.count(editor.getValue());
+    const selectedText = editor.getSelection();
+    const selectionResult = this.settings.showSelectionCount && selectedText.length > 0 ? this.counter.count(selectedText) : null;
+    const displayText = formatStatusText(fullResult, selectionResult, preset);
+    const tooltipText = selectionResult ? `[\u9078\u629E\u7BC4\u56F2]
+${this.formatResultDetails(selectionResult, preset)}
 
-    formatResultDetails(result) {
-        return [
-            `文字数: ${result.characters}`,
-            `マス数: ${result.totalCells}`,
-            `段落数: ${result.paragraphs}`,
-            `行数: ${result.totalLines}`,
-            `原稿用紙: ${this.formatManuscriptCount(result)}`
-        ].join('\n');
+[\u5168\u4F53]
+${this.formatResultDetails(fullResult, preset)}` : this.formatResultDetails(fullResult, preset);
+    this.statusBarItem.textContent = displayText;
+    this.updateTooltip(tooltipText);
+    this.updateWarningState(fullResult, preset);
+  }
+  formatResultDetails(result, preset) {
+    const details = [
+      `\u30D7\u30EA\u30BB\u30C3\u30C8: ${preset.name}`,
+      `\u6587\u5B57\u6570: ${result.characters}`,
+      `\u30DE\u30B9\u6570: ${result.totalCells}`,
+      `\u6BB5\u843D\u6570: ${result.paragraphs}`,
+      `\u7A7A\u884C\u6570: ${result.emptyParagraphs}`,
+      `\u4F7F\u7528\u884C\u6570: ${result.totalLines}`,
+      `\u30DA\u30FC\u30B8: ${formatPageCount(result, preset)}`
+    ];
+    if (preset.pageRange) {
+      details.push(`\u5224\u5B9A: ${isWithinPageRange(result, preset) ? "\u898F\u5B9A\u5185" : "\u26A0 \u898F\u5B9A\u5916"}`);
     }
-
-    updateTooltip(text) {
-        if (this.settings.showTooltip) {
-            this.statusBarItem.setAttr('title', text);
-        } else {
-            this.statusBarItem.removeAttribute('title');
-        }
+    return details.join("\n");
+  }
+  updateTooltip(text) {
+    if (this.settings.showTooltip) {
+      this.statusBarItem.setAttribute("title", text);
+    } else {
+      this.statusBarItem.removeAttribute("title");
     }
-
-    formatManuscriptCount(result) {
-        if (result.manuscriptPages === 0) return `${result.manuscriptLines}行`;
-        if (result.manuscriptLines === 0) return `${result.manuscriptPages}枚`;
-        return `${result.manuscriptPages}枚と${result.manuscriptLines}行`;
-    }
-}
-
-module.exports = JapaneseManuscriptCounterPlugin;
+  }
+  updateWarningState(result, preset) {
+    this.statusBarItem.classList.toggle(
+      WARNING_CLASS,
+      Boolean(preset.pageRange && !isWithinPageRange(result, preset))
+    );
+  }
+};

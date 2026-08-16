@@ -1,15 +1,20 @@
 /* Japanese Manuscript Counter Plugin Styles */
 
 .status-bar-item.plugin-japanese-manuscript-counter {
-    cursor: help;
+  cursor: help;
 }
 
 .status-bar-item.plugin-japanese-manuscript-counter:hover {
-    background-color: var(--background-modifier-hover);
+  background-color: var(--background-modifier-hover);
+}
+
+.status-bar-item.plugin-japanese-manuscript-counter-warning {
+  color: var(--text-error);
+  font-weight: 600;
 }
 
 .manuscript-counter-debug-modal {
-    white-space: pre-wrap;
-    font-family: var(--font-monospace); /* Obsidianの定義変数を使うのがベスト */
-    font-size: 12px;
+  white-space: pre-wrap;
+  font-family: var(--font-monospace); /* Obsidianの定義変数を使うのがベスト */
+  font-size: 12px;
 }
