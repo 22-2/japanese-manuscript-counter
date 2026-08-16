@@ -56,7 +56,7 @@ export default class JapaneseManuscriptCounterPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", () => this.updateCurrentCount()),
     );
-    this.registerInterval(window.setInterval(() => this.updateCurrentCount(), 300));
+    this.registerInterval(window.setInterval(() => this.updateCurrentCount(), 3000));
   }
 
   private showCountDetails(editor: Editor): void {
