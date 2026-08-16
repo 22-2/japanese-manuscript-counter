@@ -48,6 +48,16 @@ export class JapaneseManuscriptCounterSettingTab extends PluginSettingTab {
             },
           },
           {
+            name: "対象タグ",
+            desc: "カンマ区切りで複数指定できます。空欄ならすべてのノートで表示します。",
+            control: {
+              type: "text",
+              key: "statusBarTags",
+              defaultValue: DEFAULT_SETTINGS.statusBarTags,
+              placeholder: "#小説, #GA文庫",
+            },
+          },
+          {
             name: "選択範囲のカウントを表示",
             desc: "テキスト選択時に選択範囲の結果を表示します。",
             control: {

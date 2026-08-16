@@ -1,4 +1,4 @@
-import { MarkdownView, Modal, Plugin } from "obsidian";
+import { getAllTags, MarkdownView, Modal, Plugin } from "obsidian";
 import type { Editor } from "obsidian";
 import { createCounter } from "./counter/factory";
 import type { Counter, CountResult } from "./counter/types";
@@ -7,6 +7,7 @@ import { getPreset } from "./presets/presets";
 import type { ManuscriptPreset } from "./presets/presets";
 import { JapaneseManuscriptCounterSettingTab } from "./settings/settings-tab";
 import { DEFAULT_SETTINGS, normalizeSettings } from "./settings/settings";
+import { matchesTagFilter } from "./settings/tag-filter";
 import type { PluginSettings } from "./settings/settings";
 
 const WARNING_CLASS = "plugin-japanese-manuscript-counter-warning";
@@ -56,6 +57,12 @@ export default class JapaneseManuscriptCounterPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", () => this.updateCurrentCount()),
     );
+    this.registerEvent(
+      this.app.metadataCache.on("changed", (file) => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (view?.file?.path === file.path) this.updateCurrentCount();
+      }),
+    );
     this.registerInterval(window.setInterval(() => this.updateCurrentCount(), 3000));
   }
 
@@ -99,8 +106,8 @@ export default class JapaneseManuscriptCounterPlugin extends Plugin {
   }
 
   private updateCurrentCount(): void {
-    if (!this.settings.showStatusBar) {
-      this.statusBarItem.style.display = "none";
+    if (!this.canShowStatusBar()) {
+      this.hideStatusBar();
       return;
     }
 
@@ -115,7 +122,10 @@ export default class JapaneseManuscriptCounterPlugin extends Plugin {
   }
 
   private updateCount(editor: Editor): void {
-    if (!this.settings.showStatusBar) return;
+    if (!this.canShowStatusBar()) {
+      this.hideStatusBar();
+      return;
+    }
 
     const preset = this.getActivePreset();
     const fullResult = this.counter.count(editor.getValue());
@@ -166,5 +176,23 @@ export default class JapaneseManuscriptCounterPlugin extends Plugin {
       WARNING_CLASS,
       Boolean(preset.pageRange && !isWithinPageRange(result, preset)),
     );
+  }
+
+  private canShowStatusBar(): boolean {
+    if (!this.settings.showStatusBar) return false;
+
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!this.settings.statusBarTags.trim()) return true;
+    if (!view?.file) return false;
+
+    const cache = this.app.metadataCache.getFileCache(view.file);
+    return matchesTagFilter(cache ? getAllTags(cache) : null, this.settings.statusBarTags);
+  }
+
+  private hideStatusBar(): void {
+    this.statusBarItem.style.display = "none";
+    this.statusBarItem.textContent = "";
+    this.statusBarItem.removeAttribute("title");
+    this.statusBarItem.classList.remove(WARNING_CLASS);
   }
 }
