@@ -14,7 +14,8 @@ const buildOptions = {
   logLevel: "info",
   plugins: [
     obsidianCopyEsbuild({
-      targetDir: "E:\\AppData\\obsidian\\vaults\\suizen\\.obsidian\\plugins\\japanese-manuscript-counter",
+      targetDir:
+        "E:\\AppData\\obsidian\\vaults\\suizen\\.obsidian\\plugins\\japanese-manuscript-counter",
       force: true,
     }),
   ],
