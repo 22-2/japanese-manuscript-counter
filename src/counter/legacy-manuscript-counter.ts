@@ -1,6 +1,11 @@
 import { removeMarkdownSyntax } from "src/counter/markdown";
-import { addDebugLine, createCountResult, createEmptyResult, getCharWidth } from "src/counter/utils";
 import type { Counter, CounterOptions, CountResult, DebugLine } from "src/counter/types";
+import {
+  addDebugLine,
+  createCountResult,
+  createEmptyResult,
+  getCharWidth,
+} from "src/counter/utils";
 
 const CELLS_PER_LINE = 20;
 const LINES_PER_PAGE = 20;

@@ -1,4 +1,5 @@
 import { removeMarkdownSyntax } from "src/counter/markdown";
+import type { Counter, CounterOptions, CountResult, DebugLine } from "src/counter/types";
 import {
   createCountResult,
   createEmptyResult,
@@ -7,7 +8,6 @@ import {
   splitGraphemes,
 } from "src/counter/utils";
 import type { ManuscriptPreset } from "src/presets/presets";
-import type { Counter, CounterOptions, CountResult, DebugLine } from "src/counter/types";
 
 const LINE_HEAD_KINSOKU = new Set(Array.from("、。，．！？：；?!)]}〕〉》」』】）］｝»’”"));
 const LINE_END_KINSOKU = new Set(Array.from("（［｛([{〔〈《「『【〘〖〝‘“"));

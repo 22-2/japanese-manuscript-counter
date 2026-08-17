@@ -1,14 +1,14 @@
 {
-    "compilerOptions": {
-        "target": "esnext",
-        "module": "ESNext",
-        "paths": { "*": ["./*"] },
-        "moduleResolution": "Bundler",
-        "lib": ["esnext", "DOM"],
-        "strict": true,
-        "noEmit": true,
-        "skipLibCheck": true,
-        "types": ["node", "vitest/globals"]
-    },
-    "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.mts"]
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "ESNext",
+    "paths": { "*": ["./*"] },
+    "moduleResolution": "Bundler",
+    "lib": ["esnext", "DOM"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.mts"]
 }

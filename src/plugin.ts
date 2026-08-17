@@ -1,14 +1,14 @@
-import { getAllTags, MarkdownView, Modal, Plugin } from "obsidian";
 import type { Editor } from "obsidian";
+import { getAllTags, MarkdownView, Modal, Plugin } from "obsidian";
 import { createCounter } from "src/counter/factory";
 import type { Counter, CountResult } from "src/counter/types";
 import { formatPageCount, formatStatusText, isWithinPageRange } from "src/presets/formatting";
-import { getPreset } from "src/presets/presets";
 import type { ManuscriptPreset } from "src/presets/presets";
-import { JapaneseManuscriptCounterSettingTab } from "src/settings/settings-tab";
-import { DEFAULT_SETTINGS, normalizeSettings } from "src/settings/settings";
-import { matchesTagFilter } from "src/settings/tag-filter";
+import { getPreset } from "src/presets/presets";
 import type { PluginSettings } from "src/settings/settings";
+import { normalizeSettings } from "src/settings/settings";
+import { JapaneseManuscriptCounterSettingTab } from "src/settings/settings-tab";
+import { matchesTagFilter } from "src/settings/tag-filter";
 
 const WARNING_CLASS = "plugin-japanese-manuscript-counter-warning";
 

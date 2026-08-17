@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import { LegacyManuscriptCounter } from "src/counter/legacy-manuscript-counter";
 import { LineLayoutCounter } from "src/counter/line-layout-counter";
 import { isWithinPageRange } from "src/presets/formatting";
 import { GA_BUNKO_PRESET } from "src/presets/presets";
+import { describe, expect, it } from "vitest";
 
 const options = { removeMarkdownSyntax: true };
 

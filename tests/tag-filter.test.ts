@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { matchesTagFilter, parseTagFilter } from "src/settings/tag-filter";
+import { describe, expect, it } from "vitest";
 
 describe("tag filter", () => {
   it("parses multiple tags with or without a hash", () => {
