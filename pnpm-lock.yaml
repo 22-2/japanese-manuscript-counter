@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      eastasianwidth:
+        specifier: 0.3.0
+        version: 0.3.0
     devDependencies:
       '@22-2/obsidian-copy-bundler-plugin':
         specifier: ^1.0.2
@@ -611,6 +615,9 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  eastasianwidth@0.3.0:
+    resolution: {integrity: sha512-JqasYqGO32J2c91uYKdhu1vNmXGADaLB7OOgjAhjMvpjdvGb0tsYcuwn381MwqCg4YBQDtByQcNlFYuv2kmOug==}
 
   es-module-lexer@2.3.1:
     resolution: {integrity: sha512-shc1dbU90Yl/xq1QrC7QRtfcwURZuVRfPhZbDoldJ1cn1gzDvBaBWlv0eFolj5+0znnPJz5TXLxsN77X/12KTA==}
@@ -1239,6 +1246,8 @@ snapshots:
   crelt@1.0.7: {}
 
   detect-libc@2.1.2: {}
+
+  eastasianwidth@0.3.0: {}
 
   es-module-lexer@2.3.1: {}
 

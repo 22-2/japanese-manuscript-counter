@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { LegacyManuscriptCounter } from "src/counter/legacy-manuscript-counter";
 import { LineLayoutCounter } from "src/counter/line-layout-counter";
+import { isWithinPageRange } from "src/presets/formatting";
 import { GA_BUNKO_PRESET } from "src/presets/presets";
 
 const options = { removeMarkdownSyntax: true };
@@ -38,6 +39,26 @@ describe("LineLayoutCounter", () => {
     expect(counter.count("あ".repeat(42)).totalLines).toBe(1);
     expect(counter.count("あ".repeat(43)).totalLines).toBe(2);
     expect(counter.count("a".repeat(84)).totalLines).toBe(1);
+    expect(counter.count("a".repeat(85)).totalLines).toBe(2);
+  });
+
+  it("keeps grapheme clusters together", () => {
+    const result = counter.count(`${"あ".repeat(41)}👩‍💻あ`, true);
+
+    expect(result.totalLines).toBe(2);
+    expect(result.debugInfo[0].lines[0].text).toBe(`${"あ".repeat(41)}👩‍💻`);
+
+    expect(counter.count(`${"あ".repeat(41)}か\u3099`).totalLines).toBe(1);
+  });
+
+  it("applies Japanese line-head and line-end kinsoku", () => {
+    const closingResult = counter.count(`${"あ".repeat(42)}。あ`, true);
+    const openingResult = counter.count(`${"あ".repeat(41)}（あ`, true);
+
+    expect(closingResult.totalLines).toBe(2);
+    expect(closingResult.debugInfo[0].lines[0].text.endsWith("。")).toBe(true);
+    expect(openingResult.totalLines).toBe(2);
+    expect(openingResult.debugInfo[0].lines[1].text.startsWith("（")).toBe(true);
   });
 
   it("treats line breaks and blank lines as used lines", () => {
@@ -52,11 +73,17 @@ describe("LineLayoutCounter", () => {
     expect(counter.count("本文\r\n続き").totalLines).toBe(2);
   });
 
-  it("calculates the page range from the unrounded page count", () => {
+  it("uses the rounded page count for the page range", () => {
     expect(counter.count(makeLines(80 * 34)).pageCount).toBe(80);
     expect(counter.count(makeLines(130 * 34)).pageCount).toBe(130);
-    expect(counter.count(makeLines(80 * 34 - 1)).pageCount).toBeLessThan(80);
-    expect(counter.count(makeLines(130 * 34 + 1)).pageCount).toBeGreaterThan(130);
+
+    const justBelowMinimum = counter.count(makeLines(80 * 34 - 1));
+    const justAboveMaximum = counter.count(makeLines(130 * 34 + 1));
+
+    expect(justBelowMinimum.pageCount).toBeLessThan(80);
+    expect(isWithinPageRange(justBelowMinimum, GA_BUNKO_PRESET)).toBe(true);
+    expect(justAboveMaximum.pageCount).toBeGreaterThan(130);
+    expect(isWithinPageRange(justAboveMaximum, GA_BUNKO_PRESET)).toBe(false);
   });
 
   it("returns zero for an empty document", () => {

@@ -15,8 +15,15 @@ describe("GA文庫 status formatting", () => {
   it("formats the requested in-range status text", () => {
     const result = counter.count(makeLines(3346));
 
-    expect(formatPageCount(result, GA_BUNKO_PRESET)).toBe("98.4頁（GA 42×34）");
-    expect(formatStatusText(result, null, GA_BUNKO_PRESET)).toBe("98.4頁（GA 42×34）・規定内");
+    expect(formatPageCount(result, GA_BUNKO_PRESET)).toBe("99頁（GA 42×34）");
+    expect(formatStatusText(result, null, GA_BUNKO_PRESET)).toBe("99頁（GA 42×34）・規定内");
+    expect(isWithinPageRange(result, GA_BUNKO_PRESET)).toBe(true);
+  });
+
+  it("rounds a partial minimum page up for compliance", () => {
+    const result = counter.count(makeLines(80 * 34 - 1));
+
+    expect(formatPageCount(result, GA_BUNKO_PRESET)).toBe("80頁（GA 42×34）");
     expect(isWithinPageRange(result, GA_BUNKO_PRESET)).toBe(true);
   });
 

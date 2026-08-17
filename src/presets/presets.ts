@@ -1,5 +1,6 @@
 export type CounterEngine = "manuscript" | "line-layout";
-export type PageDisplay = "manuscript" | "decimal";
+export type PageDisplay = "manuscript" | "decimal" | "integer";
+export type PageRounding = "ceil";
 export type PresetId = "manuscript-20x20" | "ga-bunko-42x34";
 
 export interface ManuscriptPreset {
@@ -13,6 +14,7 @@ export interface ManuscriptPreset {
   countBlankLines: boolean;
   pageUnit: "枚" | "頁";
   pageDisplay: PageDisplay;
+  pageRounding?: PageRounding;
   pageRange?: {
     min: number;
     max: number;
@@ -42,7 +44,8 @@ export const GA_BUNKO_PRESET: ManuscriptPreset = {
   forceLineBreaks: true,
   countBlankLines: true,
   pageUnit: "頁",
-  pageDisplay: "decimal",
+  pageDisplay: "integer",
+  pageRounding: "ceil",
   pageRange: {
     min: 80,
     max: 130,

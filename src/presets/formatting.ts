@@ -1,9 +1,17 @@
 import type { CountResult } from "src/counter/types";
 import type { ManuscriptPreset } from "src/presets/presets";
 
+export function getPageCountForPreset(result: CountResult, preset: ManuscriptPreset): number {
+  return preset.pageRounding === "ceil" ? Math.ceil(result.pageCount) : result.pageCount;
+}
+
 export function formatPageCount(result: CountResult, preset: ManuscriptPreset): string {
   if (preset.pageDisplay === "decimal") {
-    return `${result.pageCount.toFixed(1)}${preset.pageUnit}（${preset.statusLabel}）`;
+    return `${getPageCountForPreset(result, preset).toFixed(1)}${preset.pageUnit}（${preset.statusLabel}）`;
+  }
+
+  if (preset.pageDisplay === "integer") {
+    return `${getPageCountForPreset(result, preset)}${preset.pageUnit}（${preset.statusLabel}）`;
   }
 
   if (result.fullPages === 0) return `${result.remainingLines}行`;
@@ -12,7 +20,7 @@ export function formatPageCount(result: CountResult, preset: ManuscriptPreset): 
 }
 
 export function formatResultLabel(result: CountResult, preset: ManuscriptPreset): string {
-  if (preset.pageDisplay === "decimal") {
+  if (preset.pageDisplay === "decimal" || preset.pageDisplay === "integer") {
     return formatPageCount(result, preset);
   }
 
@@ -22,7 +30,8 @@ export function formatResultLabel(result: CountResult, preset: ManuscriptPreset)
 export function isWithinPageRange(result: CountResult, preset: ManuscriptPreset): boolean {
   if (!preset.pageRange) return true;
 
-  return result.pageCount >= preset.pageRange.min && result.pageCount <= preset.pageRange.max;
+  const pageCount = getPageCountForPreset(result, preset);
+  return pageCount >= preset.pageRange.min && pageCount <= preset.pageRange.max;
 }
 
 export function formatCompliance(result: CountResult, preset: ManuscriptPreset): string {

@@ -13,6 +13,9 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check"
   },
+  "dependencies": {
+    "eastasianwidth": "0.3.0"
+  },
   "devDependencies": {
     "@22-2/obsidian-copy-bundler-plugin": "^1.0.2",
     "@types/node": "26.2.0",
