@@ -1,10 +1,10 @@
 {
   "id": "japanese-manuscript-counter",
-  "name": "Japanese Manuscript Counter (Yo Fujii, 22-2)",
+  "name": "Japanese Manuscript Counter",
   "version": "2.1.0",
   "minAppVersion": "1.13.0",
   "description": "Displays the number of Japanese characters and their equivalent in 400-character manuscript paper in real time. Provides an accurate count taking into account line breaks, paragraphs, and character breaks.",
-  "author": "Yo Fujii",
+  "author": "Yo Fujii, 22-2",
   "authorUrl": "https://github.com/YoFujii0705",
   "isDesktopOnly": false
 }
